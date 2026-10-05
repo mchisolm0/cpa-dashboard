@@ -1,0 +1,20 @@
+# Serves the dashboard at / beside CLIProxyAPI on one origin. Dashboard paths
+# are an explicit allowlist; everything else, including /v1 WebSockets,
+# /v0/management and /management.html, reaches the proxy with its path intact.
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	@dashboard path / /assets/* /api/*
+	handle @dashboard {
+		reverse_proxy dashboard:3000
+	}
+
+	handle {
+		reverse_proxy cli-proxy-api:8317 {
+			flush_interval -1
+		}
+	}
+}

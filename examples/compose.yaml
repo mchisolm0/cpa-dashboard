@@ -1,0 +1,33 @@
+# CLIProxyAPI, this dashboard, and Caddy on one private origin.
+# Put TLS and access control in front of port 8080 (Tailscale Serve, a VPN,
+# or an authenticated reverse proxy). The dashboard has no login.
+services:
+  cli-proxy-api:
+    image: eceasy/cli-proxy-api:latest
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/CLIProxyAPI/config.yaml
+      - ./auths:/root/.cli-proxy-api
+
+  dashboard:
+    build: https://github.com/mchisolm0/cpa-dashboard.git#main
+    restart: unless-stopped
+    environment:
+      CPA_RESP_ADDR: cli-proxy-api:8317
+      CPA_BASE_URL: http://cli-proxy-api:8317
+      CPA_MANAGEMENT_KEY_FILE: /run/secrets/management-key
+      INDEX_INTERVAL_MINUTES: "30"
+    volumes:
+      - /path/to/archive:/archive:ro
+      - ./dashboard-index:/index
+      # Plaintext management key, readable by uid 1000.
+      - ./dashboard-management-key:/run/secrets/management-key:ro
+
+  edge:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [cli-proxy-api, dashboard]
